@@ -1,0 +1,1808 @@
+import Foundation
+
+// MARK: - Firewall IDs
+
+public struct FirewallRuleID:
+    Hashable,
+    Codable,
+    Sendable
+{
+    public let rawValue: UUID
+
+    public init(
+        rawValue: UUID = UUID()
+    ) {
+        self.rawValue = rawValue
+    }
+}
+
+public struct FirewallFlowID:
+    Hashable,
+    Codable,
+    Sendable
+{
+    public let rawValue: UUID
+
+    public init(
+        rawValue: UUID = UUID()
+    ) {
+        self.rawValue = rawValue
+    }
+}
+
+// MARK: - Network Protocol
+
+public enum FirewallProtocol:
+    String,
+    Codable,
+    Sendable
+{
+    case tcp
+    case udp
+    case icmp
+    case other
+}
+
+// MARK: - Direction
+
+public enum FirewallDirection:
+    String,
+    Codable,
+    Sendable
+{
+    case inbound
+    case outbound
+}
+
+// MARK: - Action
+
+public enum FirewallAction:
+    String,
+    Codable,
+    Sendable
+{
+    case allow
+    case block
+}
+
+// MARK: - Default Policy
+
+public enum FirewallDefaultPolicy:
+    String,
+    Codable,
+    Sendable
+{
+    case allow
+    case block
+}
+
+// MARK: - IP Address
+
+public struct FirewallIPAddress:
+    Hashable,
+    Codable,
+    Sendable
+{
+    public enum Version:
+        String,
+        Codable,
+        Sendable
+    {
+        case ipv4
+        case ipv6
+    }
+
+    public let value:
+        String
+
+    public let version:
+        Version
+
+    public init(
+        _ value:
+            String,
+        version:
+            Version
+    ) {
+        self.value = value
+        self.version = version
+    }
+}
+
+// MARK: - Port Range
+
+public struct FirewallPortRange:
+    Hashable,
+    Codable,
+    Sendable
+{
+    public let lower:
+        UInt16
+
+    public let upper:
+        UInt16
+
+    public init(
+        lower:
+            UInt16,
+        upper:
+            UInt16
+    ) {
+        precondition(
+            lower <= upper
+        )
+
+        self.lower = lower
+        self.upper = upper
+    }
+
+    public func contains(
+        _ port:
+            UInt16
+    ) -> Bool {
+        port >= lower &&
+        port <= upper
+    }
+}
+
+// MARK: - Flow
+
+public struct FirewallFlow:
+    Sendable
+{
+    public let id:
+        FirewallFlowID
+
+    public let direction:
+        FirewallDirection
+
+    public let `protocol`:
+        FirewallProtocol
+
+    public let sourceAddress:
+        FirewallIPAddress
+
+    public let destinationAddress:
+        FirewallIPAddress
+
+    public let sourcePort:
+        UInt16
+
+    public let destinationPort:
+        UInt16
+
+    public let processIdentifier:
+        Int?
+
+    public let processName:
+        String?
+
+    public let timestamp:
+        Date
+
+    public init(
+        id:
+            FirewallFlowID =
+                FirewallFlowID(),
+        direction:
+            FirewallDirection,
+        protocol:
+            FirewallProtocol,
+        sourceAddress:
+            FirewallIPAddress,
+        destinationAddress:
+            FirewallIPAddress,
+        sourcePort:
+            UInt16,
+        destinationPort:
+            UInt16,
+        processIdentifier:
+            Int? = nil,
+        processName:
+            String? = nil,
+        timestamp:
+            Date = Date()
+    ) {
+        self.id = id
+        self.direction = direction
+        self.protocol = `protocol`
+        self.sourceAddress = sourceAddress
+        self.destinationAddress = destinationAddress
+        self.sourcePort = sourcePort
+        self.destinationPort = destinationPort
+        self.processIdentifier = processIdentifier
+        self.processName = processName
+        self.timestamp = timestamp
+    }
+}
+
+// MARK: - Firewall Rule
+
+public struct FirewallRule:
+    Sendable,
+    Codable
+{
+    public let id:
+        FirewallRuleID
+
+    public let priority:
+        Int
+
+    public let enabled:
+        Bool
+
+    public let direction:
+        FirewallDirection?
+
+    public let `protocol`:
+        FirewallProtocol?
+
+    public let sourceAddress:
+        FirewallIPAddress?
+
+    public let destinationAddress:
+        FirewallIPAddress?
+
+    public let sourcePort:
+        FirewallPortRange?
+
+    public let destinationPort:
+        FirewallPortRange?
+
+    public let processIdentifier:
+        Int?
+
+    public let processName:
+        String?
+
+    public let action:
+        FirewallAction
+
+    public let description:
+        String
+
+    public init(
+        id:
+            FirewallRuleID =
+                FirewallRuleID(),
+        priority:
+            Int,
+        enabled:
+            Bool = true,
+        direction:
+            FirewallDirection? = nil,
+        protocol:
+            FirewallProtocol? = nil,
+        sourceAddress:
+            FirewallIPAddress? = nil,
+        destinationAddress:
+            FirewallIPAddress? = nil,
+        sourcePort:
+            FirewallPortRange? = nil,
+        destinationPort:
+            FirewallPortRange? = nil,
+        processIdentifier:
+            Int? = nil,
+        processName:
+            String? = nil,
+        action:
+            FirewallAction,
+        description:
+            String
+    ) {
+        self.id = id
+        self.priority = priority
+        self.enabled = enabled
+        self.direction = direction
+        self.protocol = `protocol`
+        self.sourceAddress = sourceAddress
+        self.destinationAddress = destinationAddress
+        self.sourcePort = sourcePort
+        self.destinationPort = destinationPort
+        self.processIdentifier = processIdentifier
+        self.processName = processName
+        self.action = action
+        self.description = description
+    }
+
+    public func matches(
+        _ flow:
+            FirewallFlow
+    ) -> Bool {
+
+        guard enabled else {
+            return false
+        }
+
+        if let direction {
+            guard direction ==
+                    flow.direction
+            else {
+                return false
+            }
+        }
+
+        if let `protocol` {
+            guard `protocol` ==
+                    flow.protocol
+            else {
+                return false
+            }
+        }
+
+        if let sourceAddress {
+            guard sourceAddress ==
+                    flow.sourceAddress
+            else {
+                return false
+            }
+        }
+
+        if let destinationAddress {
+            guard destinationAddress ==
+                    flow.destinationAddress
+            else {
+                return false
+            }
+        }
+
+        if let sourcePort {
+            guard sourcePort.contains(
+                flow.sourcePort
+            )
+            else {
+                return false
+            }
+        }
+
+        if let destinationPort {
+            guard destinationPort.contains(
+                flow.destinationPort
+            )
+            else {
+                return false
+            }
+        }
+
+        if let processIdentifier {
+            guard processIdentifier ==
+                    flow.processIdentifier
+            else {
+                return false
+            }
+        }
+
+        if let processName {
+            guard processName ==
+                    flow.processName
+            else {
+                return false
+            }
+        }
+
+        return true
+    }
+}
+
+// MARK: - Verdict
+
+public struct FirewallVerdict:
+    Sendable
+{
+    public let action:
+        FirewallAction
+
+    public let rule:
+        FirewallRule?
+
+    public let reason:
+        String
+
+    public init(
+        action:
+            FirewallAction,
+        rule:
+            FirewallRule?,
+        reason:
+            String
+    ) {
+        self.action = action
+        self.rule = rule
+        self.reason = reason
+    }
+}
+
+// MARK: - Rule Store
+
+public actor FirewallRuleStore {
+
+    private var rules:
+        [FirewallRuleID: FirewallRule] = [:]
+
+    public init() {}
+
+    public func add(
+        _ rule:
+            FirewallRule
+    ) {
+        rules[
+            rule.id
+        ] = rule
+    }
+
+    public func remove(
+        _ id:
+            FirewallRuleID
+    ) {
+        rules.removeValue(
+            forKey:
+                id
+        )
+    }
+
+    public func update(
+        _ rule:
+            FirewallRule
+    ) {
+        rules[
+            rule.id
+        ] = rule
+    }
+
+    public func all()
+        -> [FirewallRule]
+    {
+        rules.values
+            .sorted {
+                $0.priority <
+                $1.priority
+            }
+    }
+
+    public func clear() {
+        rules.removeAll()
+    }
+}
+
+// MARK: - Firewall Engine
+
+public actor PureSwiftFirewall {
+
+    private let ruleStore:
+        FirewallRuleStore
+
+    private var defaultPolicy:
+        FirewallDefaultPolicy
+
+    private var evaluatedFlows:
+        UInt64 = 0
+
+    private var allowedFlows:
+        UInt64 = 0
+
+    private var blockedFlows:
+        UInt64 = 0
+
+    public init(
+        defaultPolicy:
+            FirewallDefaultPolicy = .block
+    ) {
+        self.ruleStore =
+            FirewallRuleStore()
+
+        self.defaultPolicy =
+            defaultPolicy
+    }
+
+    // MARK: Rules
+
+    public func addRule(
+        _ rule:
+            FirewallRule
+    ) async {
+        await ruleStore.add(
+            rule
+        )
+    }
+
+    public func removeRule(
+        _ id:
+            FirewallRuleID
+    ) async {
+        await ruleStore.remove(
+            id
+        )
+    }
+
+    public func replaceRules(
+        _ rules:
+            [FirewallRule]
+    ) async {
+
+        await ruleStore.clear()
+
+        for rule in rules {
+            await ruleStore.add(
+                rule
+            )
+        }
+    }
+
+    public func setDefaultPolicy(
+        _ policy:
+            FirewallDefaultPolicy
+    ) {
+        defaultPolicy =
+            policy
+    }
+
+    // MARK: Evaluation
+
+    public func evaluate(
+        _ flow:
+            FirewallFlow
+    ) async -> FirewallVerdict {
+
+        evaluatedFlows += 1
+
+        let rules =
+            await ruleStore.all()
+
+        for rule in rules {
+
+            guard rule.matches(
+                flow
+            )
+            else {
+                continue
+            }
+
+            switch rule.action {
+
+            case .allow:
+                allowedFlows += 1
+
+            case .block:
+                blockedFlows += 1
+            }
+
+            return FirewallVerdict(
+                action:
+                    rule.action,
+                rule:
+                    rule,
+                reason:
+                    rule.description
+            )
+        }
+
+        switch defaultPolicy {
+
+        case .allow:
+
+            allowedFlows += 1
+
+            return FirewallVerdict(
+                action:
+                    .allow,
+                rule:
+                    nil,
+                reason:
+                    "No rule matched; default allow policy."
+            )
+
+        case .block:
+
+            blockedFlows += 1
+
+            return FirewallVerdict(
+                action:
+                    .block,
+                rule:
+                    nil,
+                reason:
+                    "No rule matched; default block policy."
+            )
+        }
+    }
+
+    // MARK: Statistics
+
+    public func statistics()
+        -> FirewallStatistics
+    {
+        FirewallStatistics(
+            evaluatedFlows:
+                evaluatedFlows,
+            allowedFlows:
+                allowedFlows,
+            blockedFlows:
+                blockedFlows
+        )
+    }
+}
+
+// MARK: - Statistics
+
+public struct FirewallStatistics:
+    Sendable
+{
+    public let evaluatedFlows:
+        UInt64
+
+    public let allowedFlows:
+        UInt64
+
+    public let blockedFlows:
+        UInt64
+
+    public var blockRate:
+        Double {
+
+        guard evaluatedFlows > 0
+        else {
+            return 0
+        }
+
+        return Double(
+            blockedFlows
+        ) /
+        Double(
+            evaluatedFlows
+        )
+    }
+}
+
+// MARK: - Common Rule Factory
+
+public enum FirewallRules {
+
+    public static func blockTCPPort(
+        _ port:
+            UInt16,
+        priority:
+            Int = 100
+    ) -> FirewallRule {
+
+        FirewallRule(
+            priority:
+                priority,
+            protocol:
+                .tcp,
+            destinationPort:
+                FirewallPortRange(
+                    lower:
+                        port,
+                    upper:
+                        port
+                ),
+            action:
+                .block,
+            description:
+                "Block TCP destination port \(port)."
+        )
+    }
+
+    public static func allowTCPPort(
+        _ port:
+            UInt16,
+        priority:
+            Int = 10
+    ) -> FirewallRule {
+
+        FirewallRule(
+            priority:
+                priority,
+            protocol:
+                .tcp,
+            destinationPort:
+                FirewallPortRange(
+                    lower:
+                        port,
+                    upper:
+                        port
+                ),
+            action:
+                .allow,
+            description:
+                "Allow TCP destination port \(port)."
+        )
+    }
+
+    public static func blockUDPPort(
+        _ port:
+            UInt16,
+        priority:
+            Int = 100
+    ) -> FirewallRule {
+
+        FirewallRule(
+            priority:
+                priority,
+            protocol:
+                .udp,
+            destinationPort:
+                FirewallPortRange(
+                    lower:
+                        port,
+                    upper:
+                        port
+                ),
+            action:
+                .block,
+            description:
+                "Block UDP destination port \(port)."
+        )
+    }
+
+    public static func blockProcess(
+        _ process:
+            String,
+        priority:
+            Int = 50
+    ) -> FirewallRule {
+
+        FirewallRule(
+            priority:
+                priority,
+            processName:
+                process,
+            action:
+                .block,
+            description:
+                "Block process \(process)."
+        )
+    }
+
+    public static func allowProcess(
+        _ process:
+            String,
+        priority:
+            Int = 10
+    ) -> FirewallRule {
+
+        FirewallRule(
+            priority:
+                priority,
+            processName:
+                process,
+            action:
+                .allow,
+            description:
+                "Allow process \(process)."
+        )
+    }
+}
+
+
+
+
+
+
+
+
+
+import Foundation
+import CryptoKit
+
+// MARK: - IDs
+
+public struct CryptoIdentityID:
+    Hashable,
+    Codable,
+    Sendable
+{
+    public let rawValue: UUID
+
+    public init(
+        rawValue: UUID = UUID()
+    ) {
+        self.rawValue = rawValue
+    }
+}
+
+public struct SignOnChallengeID:
+    Hashable,
+    Codable,
+    Sendable
+{
+    public let rawValue: UUID
+
+    public init(
+        rawValue: UUID = UUID()
+    ) {
+        self.rawValue = rawValue
+    }
+}
+
+public struct CryptoSessionID:
+    Hashable,
+    Codable,
+    Sendable
+{
+    public let rawValue: UUID
+
+    public init(
+        rawValue: UUID = UUID()
+    ) {
+        self.rawValue = rawValue
+    }
+}
+
+// MARK: - Errors
+
+public enum CryptoSignOnError:
+    Error,
+    Sendable
+{
+    case identityAlreadyExists
+    case identityNotFound
+    case challengeNotFound
+    case challengeExpired
+    case challengeAlreadyUsed
+    case invalidSignature
+    case invalidSession
+    case sessionExpired
+    case revokedIdentity
+    case malformedPublicKey
+}
+
+// MARK: - Cryptographic Identity
+
+public struct CryptoIdentity:
+    Sendable,
+    Codable
+{
+    public let id:
+        CryptoIdentityID
+
+    public let name:
+        String
+
+    public let createdAt:
+        Date
+
+    public var revoked:
+        Bool
+
+    public let publicKey:
+        Data
+
+    public init(
+        id:
+            CryptoIdentityID =
+                CryptoIdentityID(),
+        name:
+            String,
+        createdAt:
+            Date = Date(),
+        revoked:
+            Bool = false,
+        publicKey:
+            Data
+    ) {
+        self.id = id
+        self.name = name
+        self.createdAt = createdAt
+        self.revoked = revoked
+        self.publicKey = publicKey
+    }
+}
+
+// MARK: - Client Key Pair
+
+public struct CryptoSignOnKeyPair:
+    Sendable
+{
+    public let identityID:
+        CryptoIdentityID
+
+    private let privateKey:
+        P256.Signing.PrivateKey
+
+    public let publicKey:
+        P256.Signing.PublicKey
+
+    public init(
+        identityID:
+            CryptoIdentityID =
+                CryptoIdentityID()
+    ) {
+        let privateKey =
+            P256.Signing.PrivateKey()
+
+        self.identityID =
+            identityID
+
+        self.privateKey =
+            privateKey
+
+        self.publicKey =
+            privateKey.publicKey
+    }
+
+    public func sign(
+        _ data:
+            Data
+    ) throws -> Data {
+
+        let signature =
+            try privateKey.signature(
+                for:
+                    data
+            )
+
+        return signature.derRepresentation
+    }
+}
+
+// MARK: - Challenge
+
+public struct SignOnChallenge:
+    Sendable,
+    Codable
+{
+    public let id:
+        SignOnChallengeID
+
+    public let identityID:
+        CryptoIdentityID
+
+    public let issuedAt:
+        Date
+
+    public let expiresAt:
+        Date
+
+    public let nonce:
+        Data
+
+    public init(
+        id:
+            SignOnChallengeID =
+                SignOnChallengeID(),
+        identityID:
+            CryptoIdentityID,
+        issuedAt:
+            Date = Date(),
+        expiresAt:
+            Date,
+        nonce:
+            Data
+    ) {
+        self.id = id
+        self.identityID = identityID
+        self.issuedAt = issuedAt
+        self.expiresAt = expiresAt
+        self.nonce = nonce
+    }
+
+    public func isExpired(
+        at date:
+            Date = Date()
+    ) -> Bool {
+        date >= expiresAt
+    }
+}
+
+// MARK: - Signed Challenge
+
+public struct SignedSignOnChallenge:
+    Sendable,
+    Codable
+{
+    public let challengeID:
+        SignOnChallengeID
+
+    public let identityID:
+        CryptoIdentityID
+
+    public let signature:
+        Data
+
+    public init(
+        challengeID:
+            SignOnChallengeID,
+        identityID:
+            CryptoIdentityID,
+        signature:
+            Data
+    ) {
+        self.challengeID =
+            challengeID
+
+        self.identityID =
+            identityID
+
+        self.signature =
+            signature
+    }
+}
+
+// MARK: - Session
+
+public struct CryptoSignOnSession:
+    Sendable,
+    Codable
+{
+    public let id:
+        CryptoSessionID
+
+    public let identityID:
+        CryptoIdentityID
+
+    public let createdAt:
+        Date
+
+    public let expiresAt:
+        Date
+
+    public init(
+        id:
+            CryptoSessionID =
+                CryptoSessionID(),
+        identityID:
+            CryptoIdentityID,
+        createdAt:
+            Date = Date(),
+        expiresAt:
+            Date
+    ) {
+        self.id = id
+        self.identityID = identityID
+        self.createdAt = createdAt
+        self.expiresAt = expiresAt
+    }
+
+    public func isValid(
+        at date:
+            Date = Date()
+    ) -> Bool {
+        date < expiresAt
+    }
+}
+
+// MARK: - Identity Registry
+
+public actor CryptoIdentityRegistry {
+
+    private var identities:
+        [CryptoIdentityID:
+            CryptoIdentity] = [:]
+
+    public init() {}
+
+    public func register(
+        _ identity:
+            CryptoIdentity
+    ) throws {
+
+        guard identities[
+            identity.id
+        ] == nil
+        else {
+            throw CryptoSignOnError
+                .identityAlreadyExists
+        }
+
+        identities[
+            identity.id
+        ] = identity
+    }
+
+    public func identity(
+        _ id:
+            CryptoIdentityID
+    ) throws
+        -> CryptoIdentity
+    {
+        guard let identity =
+            identities[id]
+        else {
+            throw CryptoSignOnError
+                .identityNotFound
+        }
+
+        guard !identity.revoked
+        else {
+            throw CryptoSignOnError
+                .revokedIdentity
+        }
+
+        return identity
+    }
+
+    public func revoke(
+        _ id:
+            CryptoIdentityID
+    ) throws {
+
+        guard var identity =
+            identities[id]
+        else {
+            throw CryptoSignOnError
+                .identityNotFound
+        }
+
+        identity.revoked =
+            true
+
+        identities[id] =
+            identity
+    }
+}
+
+// MARK: - Challenge Store
+
+public actor SignOnChallengeStore {
+
+    private var challenges:
+        [SignOnChallengeID:
+            SignOnChallenge] = [:]
+
+    public init() {}
+
+    public func insert(
+        _ challenge:
+            SignOnChallenge
+    ) {
+        challenges[
+            challenge.id
+        ] = challenge
+    }
+
+    public func consume(
+        _ id:
+            SignOnChallengeID
+    ) throws
+        -> SignOnChallenge
+    {
+        guard let challenge =
+            challenges.removeValue(
+                forKey:
+                    id
+            )
+        else {
+            throw CryptoSignOnError
+                .challengeNotFound
+        }
+
+        guard !challenge.isExpired()
+        else {
+            throw CryptoSignOnError
+                .challengeExpired
+        }
+
+        return challenge
+    }
+}
+
+// MARK: - Cryptographic Verification
+
+public enum CryptoSignatureVerifier {
+
+    public static func verify(
+        publicKeyData:
+            Data,
+        message:
+            Data,
+        signatureData:
+            Data
+    ) throws -> Bool {
+
+        do {
+
+            let publicKey =
+                try P256.Signing.PublicKey(
+                    x963Representation:
+                        publicKeyData
+                )
+
+            let signature =
+                try P256.Signing.ECDSASignature(
+                    derRepresentation:
+                        signatureData
+                )
+
+            return publicKey
+                .isValidSignature(
+                    signature,
+                    for:
+                        message
+                )
+
+        } catch {
+
+            throw CryptoSignOnError
+                .invalidSignature
+        }
+    }
+}
+
+// MARK: - Session Store
+
+public actor CryptoSessionStore {
+
+    private var sessions:
+        [CryptoSessionID:
+            CryptoSignOnSession] = [:]
+
+    private let lifetime:
+        TimeInterval
+
+    public init(
+        lifetime:
+            TimeInterval = 3600
+    ) {
+        self.lifetime =
+            lifetime
+    }
+
+    public func create(
+        identity:
+            CryptoIdentityID
+    ) -> CryptoSignOnSession {
+
+        let now =
+            Date()
+
+        let session =
+            CryptoSignOnSession(
+                identityID:
+                    identity,
+                createdAt:
+                    now,
+                expiresAt:
+                    now.addingTimeInterval(
+                        lifetime
+                    )
+            )
+
+        sessions[
+            session.id
+        ] = session
+
+        return session
+    }
+
+    public func validate(
+        _ id:
+            CryptoSessionID
+    ) throws
+        -> CryptoSignOnSession
+    {
+        guard let session =
+            sessions[id]
+        else {
+            throw CryptoSignOnError
+                .invalidSession
+        }
+
+        guard session.isValid()
+        else {
+            sessions.removeValue(
+                forKey:
+                    id
+            )
+
+            throw CryptoSignOnError
+                .sessionExpired
+        }
+
+        return session
+    }
+
+    public func revoke(
+        _ id:
+            CryptoSessionID
+    ) {
+        sessions.removeValue(
+            forKey:
+                id
+        )
+    }
+}
+
+// MARK: - Audit
+
+public struct CryptoSignOnAuditEvent:
+    Sendable,
+    Codable
+{
+    public let timestamp:
+        Date
+
+    public let identityID:
+        CryptoIdentityID?
+
+    public let challengeID:
+        SignOnChallengeID?
+
+    public let success:
+        Bool
+
+    public let event:
+        String
+
+    public init(
+        timestamp:
+            Date = Date(),
+        identityID:
+            CryptoIdentityID?,
+        challengeID:
+            SignOnChallengeID?,
+        success:
+            Bool,
+        event:
+            String
+    ) {
+        self.timestamp =
+            timestamp
+
+        self.identityID =
+            identityID
+
+        self.challengeID =
+            challengeID
+
+        self.success =
+            success
+
+        self.event =
+            event
+    }
+}
+
+public actor CryptoSignOnAuditLog {
+
+    private var events:
+        [CryptoSignOnAuditEvent] = []
+
+    public init() {}
+
+    public func append(
+        _ event:
+            CryptoSignOnAuditEvent
+    ) {
+        events.append(
+            event
+        )
+    }
+
+    public func all()
+        -> [CryptoSignOnAuditEvent]
+    {
+        events
+    }
+}
+
+// MARK: - Sign-On Server
+
+public actor CryptographicSignOnServer {
+
+    public let identities:
+        CryptoIdentityRegistry
+
+    public let challenges:
+        SignOnChallengeStore
+
+    public let sessions:
+        CryptoSessionStore
+
+    public let audit:
+        CryptoSignOnAuditLog
+
+    private let challengeLifetime:
+        TimeInterval
+
+    public init(
+        challengeLifetime:
+            TimeInterval = 30,
+        sessionLifetime:
+            TimeInterval = 3600
+    ) {
+        self.identities =
+            CryptoIdentityRegistry()
+
+        self.challenges =
+            SignOnChallengeStore()
+
+        self.sessions =
+            CryptoSessionStore(
+                lifetime:
+                    sessionLifetime
+            )
+
+        self.audit =
+            CryptoSignOnAuditLog()
+
+        self.challengeLifetime =
+            challengeLifetime
+    }
+
+    // MARK: Registration
+
+    public func register(
+        keyPair:
+            CryptoSignOnKeyPair,
+        name:
+            String
+    ) async throws
+        -> CryptoIdentity
+    {
+        let identity =
+            CryptoIdentity(
+                id:
+                    keyPair.identityID,
+                name:
+                    name,
+                publicKey:
+                    keyPair.publicKey
+                        .x963Representation
+            )
+
+        try await identities.register(
+            identity
+        )
+
+        await audit.append(
+            CryptoSignOnAuditEvent(
+                identityID:
+                    identity.id,
+                challengeID:
+                    nil,
+                success:
+                    true,
+                event:
+                    "Cryptographic identity registered."
+            )
+        )
+
+        return identity
+    }
+
+    // MARK: Challenge
+
+    public func createChallenge(
+        for identityID:
+            CryptoIdentityID
+    ) async throws
+        -> SignOnChallenge
+    {
+        _ = try await identities.identity(
+            identityID
+        )
+
+        var nonce =
+            Data(
+                count:
+                    32
+            )
+
+        let result =
+            nonce.withUnsafeMutableBytes {
+                buffer in
+
+                SecRandomCopyBytes(
+                    kSecRandomDefault,
+                    buffer.count,
+                    buffer.baseAddress!
+                )
+            }
+
+        guard result == errSecSuccess
+        else {
+            throw CryptoSignOnError
+                .invalidSignature
+        }
+
+        let now =
+            Date()
+
+        let challenge =
+            SignOnChallenge(
+                identityID:
+                    identityID,
+                issuedAt:
+                    now,
+                expiresAt:
+                    now.addingTimeInterval(
+                        challengeLifetime
+                    ),
+                nonce:
+                    nonce
+            )
+
+        await challenges.insert(
+            challenge
+        )
+
+        return challenge
+    }
+
+    // MARK: Verification
+
+    public func verify(
+        _ signed:
+            SignedSignOnChallenge
+    ) async throws
+        -> CryptoSignOnSession
+    {
+        let challenge =
+            try await challenges.consume(
+                signed.challengeID
+            )
+
+        guard challenge.identityID ==
+                signed.identityID
+        else {
+            throw CryptoSignOnError
+                .invalidSignature
+        }
+
+        let identity =
+            try await identities.identity(
+                signed.identityID
+            )
+
+        let message =
+            Self.challengeMessage(
+                challenge
+            )
+
+        let valid =
+            try CryptoSignatureVerifier.verify(
+                publicKeyData:
+                    identity.publicKey,
+                message:
+                    message,
+                signatureData:
+                    signed.signature
+            )
+
+        guard valid
+        else {
+
+            await audit.append(
+                CryptoSignOnAuditEvent(
+                    identityID:
+                        identity.id,
+                    challengeID:
+                        challenge.id,
+                    success:
+                        false,
+                    event:
+                        "Cryptographic signature rejected."
+                )
+            )
+
+            throw CryptoSignOnError
+                .invalidSignature
+        }
+
+        let session =
+            await sessions.create(
+                identity:
+                    identity.id
+            )
+
+        await audit.append(
+            CryptoSignOnAuditEvent(
+                identityID:
+                    identity.id,
+                challengeID:
+                    challenge.id,
+                success:
+                    true,
+                event:
+                    "Cryptographic sign-on successful."
+            )
+        )
+
+        return session
+    }
+
+    // MARK: Session
+
+    public func validateSession(
+        _ id:
+            CryptoSessionID
+    ) async throws
+        -> CryptoSignOnSession
+    {
+        try await sessions.validate(
+            id
+        )
+    }
+
+    // MARK: Challenge Encoding
+
+    private static func challengeMessage(
+        _ challenge:
+            SignOnChallenge
+    ) -> Data {
+
+        var data =
+            Data()
+
+        data.append(
+            Data(
+                "SWIFT-CRYPTO-SIGNON-V1"
+                    .utf8
+            )
+        )
+
+        data.append(
+            Data(
+                challenge.id.rawValue
+                    .uuidString
+                    .utf8
+            )
+        )
+
+        data.append(
+            Data(
+                challenge.identityID.rawValue
+                    .uuidString
+                    .utf8
+            )
+        )
+
+        data.append(
+            challenge.nonce
+        )
+
+        return data
+    }
+}
+
+// MARK: - Client
+
+public struct CryptographicSignOnClient:
+    Sendable
+{
+    public let keyPair:
+        CryptoSignOnKeyPair
+
+    public init(
+        keyPair:
+            CryptoSignOnKeyPair
+    ) {
+        self.keyPair =
+            keyPair
+    }
+
+    public func sign(
+        _ challenge:
+            SignOnChallenge
+    ) throws
+        -> SignedSignOnChallenge
+    {
+        var message =
+            Data()
+
+        message.append(
+            Data(
+                "SWIFT-CRYPTO-SIGNON-V1"
+                    .utf8
+            )
+        )
+
+        message.append(
+            Data(
+                challenge.id.rawValue
+                    .uuidString
+                    .utf8
+            )
+        )
+
+        message.append(
+            Data(
+                challenge.identityID.rawValue
+                    .uuidString
+                    .utf8
+            )
+        )
+
+        message.append(
+            challenge.nonce
+        )
+
+        let signature =
+            try keyPair.sign(
+                message
+            )
+
+        return SignedSignOnChallenge(
+            challengeID:
+                challenge.id,
+            identityID:
+                keyPair.identityID,
+            signature:
+                signature
+        )
+    }
+}
+
+// MARK: - Example
+
+public enum CryptographicSignOnExample {
+
+    public static func run()
+        async throws
+    {
+        // Device creates its identity locally.
+
+        let keyPair =
+            CryptoSignOnKeyPair()
+
+        let client =
+            CryptographicSignOnClient(
+                keyPair:
+                    keyPair
+            )
+
+        // Server registers the public key.
+
+        let server =
+            CryptographicSignOnServer()
+
+        let identity =
+            try await server.register(
+                keyPair:
+                    keyPair,
+                name:
+                    "Industrial Workstation"
+            )
+
+        print(
+            "Registered:",
+            identity.name
+        )
+
+        // Server generates a fresh challenge.
+
+        let challenge =
+            try await server.createChallenge(
+                for:
+                    identity.id
+            )
+
+        // Client signs challenge locally.
+
+        let signed =
+            try client.sign(
+                challenge
+            )
+
+        // Server verifies signature.
+
+        let session =
+            try await server.verify(
+                signed
+            )
+
+        print(
+            "Authenticated session:",
+            session.id.rawValue
+        )
+
+        // Later API requests can carry the session.
+
+        let validated =
+            try await server.validateSession(
+                session.id
+            )
+
+        print(
+            "Session valid:",
+            validated.isValid()
+        )
+    }
+}
+
+
+
+
+
+
